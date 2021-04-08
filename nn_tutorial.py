@@ -31,6 +31,7 @@ from pathlib import Path
 import torch
 import torch.nn.functional as F
 from matplotlib import pyplot
+from torch import nn
 
 # MNIST data setup
 # ----------------
@@ -88,10 +89,6 @@ num_instances, num_features = x_train.shape
 #    (by multiplying with 1/sqrt(n)).
 
 
-weights = torch.randn(784, 10) / math.sqrt(784)
-weights.requires_grad_()
-bias = torch.zeros(10, requires_grad=True)
-
 # Thanks to PyTorch's ability to calculate gradients automatically, we can
 # use any standard Python function (or callable object) as a model! So
 # let's just write a plain matrix multiplication and broadcasted addition
@@ -126,8 +123,33 @@ bias = torch.zeros(10, requires_grad=True)
 
 loss_func = F.cross_entropy
 
-def model(x):
-    return x @ weights + bias
+# Refactor using nn.Module
+# -----------------------------
+# Next up, we'll use ``nn.Module`` and ``nn.Parameter``, for a clearer and more
+# concise training loop. We subclass ``nn.Module`` (which itself is a class and
+# able to keep track of state).  In this case, we want to create a class that
+# holds our weights, bias, and method for the forward step.  ``nn.Module`` has a
+# number of attributes and methods (such as ``.parameters()`` and ``.zero_grad()``)
+# which we will be using.
+#
+# .. note:: ``nn.Module`` (uppercase M) is a PyTorch specific concept, and is a
+#    class we'll be using a lot. ``nn.Module`` is not to be confused with the Python
+#    concept of a (lowercase ``m``) `module <https://docs.python.org/3/tutorial/modules.html>`_,
+#    which is a file of Python code that can be imported.
+
+class Mnist_Logistic(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.weights = nn.Parameter(torch.randn(784, 10) / math.sqrt(784))
+        self.bias = nn.Parameter(torch.zeros(10))
+
+    def forward(self, xb):
+        return xb @ self.weights + self.bias
+
+# Since we're now using a class instead of just using a function, we
+# first have to instantiate our model:
+
+model = Mnist_Logistic()
 
 # In the above, the ``@`` stands for the dot product operation. We will call
 # our function on one batch of data (in this case, 64 images).  This is
@@ -176,7 +198,7 @@ print(f'Accuracy at the beginning: {accuracy(predictions, yb):.2f} %')
 lr = 0.5  # learning rate
 epochs = 2  # how many epochs to train for
 
-def fit(weights, bias):
+def fit():
     for epoch in range(epochs):
         for i in range((num_instances - 1) // batch_size + 1):
             start_i = i * batch_size
@@ -188,10 +210,9 @@ def fit(weights, bias):
 
             loss.backward()
             with torch.no_grad():
-                weights -= weights.grad * lr
-                bias -= bias.grad * lr
-                weights.grad.zero_()
-                bias.grad.zero_()
+                for p in model.parameters():
+                    p -= p.grad * lr
+                model.zero_grad()
 
 # That's it: we've created and trained a minimal neural network (in this case, a
 # logistic regression, since we have no hidden layers) entirely from scratch!
@@ -199,7 +220,7 @@ def fit(weights, bias):
 # Let's check the loss and accuracy and compare those to what we got
 # earlier. We expect that the loss will have decreased and accuracy to
 # have increased, and they have.
-fit(weights, bias)
+fit()
 
 print(f'Loss at the end: {loss_func(model(xb), yb)}')
 print(f'Accuracy on the validation set: {accuracy(model(x_valid), y_valid):.2f} %')
