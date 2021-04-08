@@ -29,6 +29,7 @@ import urllib.request
 from pathlib import Path
 
 import torch
+import torch.nn.functional as F
 from matplotlib import pyplot
 
 # MNIST data setup
@@ -101,11 +102,32 @@ bias = torch.zeros(10, requires_grad=True)
 # even create fast GPU or vectorized CPU code for your function
 # automatically.
 
-def log_softmax(x):
-    return x - x.exp().sum(-1).log().unsqueeze(-1)
+# Using torch.nn.functional
+# ------------------------------
+#
+# We will now refactor our code, so that it does the same thing as before, only
+# we'll start taking advantage of PyTorch's ``nn`` classes to make it more concise
+# and flexible. At each step from here, we should be making our code one or more
+# of: shorter, more understandable, and/or more flexible.
+#
+# The first and easiest step is to make our code shorter by replacing our
+# hand-written activation and loss functions with those from ``torch.nn.functional``
+# (which is generally imported into the namespace ``F`` by convention). This module
+# contains all the functions in the ``torch.nn`` library (whereas other parts of the
+# library contain classes). As well as a wide range of loss and activation
+# functions, you'll also find here some convenient functions for creating neural
+# nets, such as pooling functions. (There are also functions for doing convolutions,
+# linear layers, etc, but as we'll see, these are usually better handled using
+# other parts of the library.)
+#
+# If you're using negative log likelihood loss and log softmax activation,
+# then Pytorch provides a single function ``F.cross_entropy`` that combines
+# the two. So we can even remove the activation function from our model.
 
-def model(x): # or predictor
-    return log_softmax(x @ weights + bias)
+loss_func = F.cross_entropy
+
+def model(x):
+    return x @ weights + bias
 
 # In the above, the ``@`` stands for the dot product operation. We will call
 # our function on one batch of data (in this case, 64 images).  This is
@@ -116,14 +138,6 @@ batch_size = 64  # batch size
 
 xb = x_train[0:batch_size]  # a mini-batch from x
 predictions = model(xb)  # predictions
-
-# Let's implement negative log-likelihood to use as the loss function
-# (again, we can just use standard Python):
-
-def nll(y_hats, ys):
-    return -y_hats[range(ys.shape[0]), ys].mean()
-
-loss_func = nll
 
 yb = y_train[0:batch_size]
 print(f'Loss at the beginning: {loss_func(predictions, yb)}')
