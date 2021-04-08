@@ -152,10 +152,19 @@ class Mnist_Logistic(nn.Module):
         # linear layer, which does all that for us. Pytorch has many types of
         # predefined layers that can greatly simplify our code, and often makes it
         # faster too.
-        self.lin = nn.Linear(784, 10)
+
+        # Adding more layers
+        input_dim = 784
+        label_dim = 10
+        hidden_dim = 200
+        self.model = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, label_dim)
+        )
 
     def forward(self, xb):
-        return self.lin(xb)
+        return self.model(xb)
 
 # Since we're now using a class instead of just using a function, we
 # first have to instantiate our model:
