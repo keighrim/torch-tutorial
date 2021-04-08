@@ -23,7 +23,6 @@ Original version is available at https://github.com/pytorch/tutorials/blob/cecea
 #
 
 import gzip
-import math
 import pickle
 import urllib.request
 from pathlib import Path
@@ -32,6 +31,7 @@ import torch
 import torch.nn.functional as F
 from matplotlib import pyplot
 from torch import nn
+from torch import optim
 
 # MNIST data setup
 # ----------------
@@ -140,11 +140,20 @@ loss_func = F.cross_entropy
 class Mnist_Logistic(nn.Module):
     def __init__(self):
         super().__init__()
-        self.weights = nn.Parameter(torch.randn(784, 10) / math.sqrt(784))
-        self.bias = nn.Parameter(torch.zeros(10))
+        # Refactor using nn.Linear
+        # -------------------------
+        #
+        # We continue to refactor our code.  Instead of manually defining and
+        # initializing ``self.weights`` and ``self.bias``, and calculating ``xb  @
+        # self.weights + self.bias``, we will instead use the Pytorch class
+        # `nn.Linear <https://pytorch.org/docs/stable/nn.html#linear-layers>`_ for a
+        # linear layer, which does all that for us. Pytorch has many types of
+        # predefined layers that can greatly simplify our code, and often makes it
+        # faster too.
+        self.lin = nn.Linear(784, 10)
 
     def forward(self, xb):
-        return xb @ self.weights + self.bias
+        return self.lin(xb)
 
 # Since we're now using a class instead of just using a function, we
 # first have to instantiate our model:
@@ -198,6 +207,17 @@ print(f'Accuracy at the beginning: {accuracy(predictions, yb):.2f} %')
 lr = 0.5  # learning rate
 epochs = 2  # how many epochs to train for
 
+# Refactor using optim
+# ------------------------------
+#
+# Pytorch also has a package with various optimization algorithms, ``torch.optim``.
+# We can use the ``step`` method from our optimizer to take a forward step, instead
+# of manually updating each parameter.
+#
+
+
+opt = optim.SGD(model.parameters(), lr=lr)
+
 def fit():
     for epoch in range(epochs):
         for i in range((num_instances - 1) // batch_size + 1):
@@ -209,10 +229,11 @@ def fit():
             loss = loss_func(pred, yb)
 
             loss.backward()
-            with torch.no_grad():
-                for p in model.parameters():
-                    p -= p.grad * lr
-                model.zero_grad()
+            opt.step()
+            opt.zero_grad()
+
+# (``optim.zero_grad()`` resets the gradient to 0 and we need to call it before
+# computing the gradient for the next minibatch.)
 
 # That's it: we've created and trained a minimal neural network (in this case, a
 # logistic regression, since we have no hidden layers) entirely from scratch!
