@@ -32,6 +32,7 @@ import torch.nn.functional as F
 from matplotlib import pyplot
 from torch import nn
 from torch import optim
+from torch.utils.data import DataLoader
 from torch.utils.data import TensorDataset
 
 # MNIST data setup
@@ -238,14 +239,21 @@ opt = optim.SGD(model.parameters(), lr=lr)
 # Both ``x_train`` and ``y_train`` can be combined in a single ``TensorDataset``,
 # which will be easier to iterate over and slice.
 
+# Refactor using DataLoader
+# ------------------------------
+#
+# Pytorch's ``DataLoader`` is responsible for managing batches. You can
+# create a ``DataLoader`` from any ``Dataset``. ``DataLoader`` makes it easier
+# to iterate over batches. Rather than having to use ``train_ds[i*bs : i*bs+bs]``,
+# the DataLoader gives us each minibatch automatically.
+
 train_ds = TensorDataset(x_train, y_train)
+train_dl = DataLoader(train_ds, batch_size=batch_size)
 
 def fit():
     for epoch in range(epochs):
-        for i in range((num_instances - 1) // batch_size + 1):
-            # Previously, we had to iterate through minibatches of x and y values separately:
-            # Now, we can do these two steps together:
-            xb, yb = train_ds[i * batch_size: i * batch_size + batch_size]
+        # Now, our loop is much cleaner, as (xb, yb) are loaded automatically from the data loader:
+        for xb, yb in train_dl:
             pred = model(xb)
             loss = loss_func(pred, yb)
 
