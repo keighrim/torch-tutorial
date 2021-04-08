@@ -32,6 +32,7 @@ import torch.nn.functional as F
 from matplotlib import pyplot
 from torch import nn
 from torch import optim
+from torch.utils.data import TensorDataset
 
 # MNIST data setup
 # ----------------
@@ -218,13 +219,33 @@ epochs = 2  # how many epochs to train for
 
 opt = optim.SGD(model.parameters(), lr=lr)
 
+# Refactor using Dataset
+# ------------------------------
+#
+# PyTorch has an abstract Dataset class.  A Dataset can be anything that has
+# a ``__len__`` function (called by Python's standard ``len`` function) and
+# a ``__getitem__`` function as a way of indexing into it.
+# `This tutorial <https://pytorch.org/tutorials/beginner/data_loading_tutorial.html>`_
+# walks through a nice example of creating a custom ``FacialLandmarkDataset`` class
+# as a subclass of ``Dataset``.
+#
+# PyTorch's `TensorDataset <https://pytorch.org/docs/stable/_modules/torch/utils/data/dataset.html#TensorDataset>`_
+# is a Dataset wrapping tensors. By defining a length and way of indexing,
+# this also gives us a way to iterate, index, and slice along the first
+# dimension of a tensor. This will make it easier to access both the
+# independent and dependent variables in the same line as we train.
+
+# Both ``x_train`` and ``y_train`` can be combined in a single ``TensorDataset``,
+# which will be easier to iterate over and slice.
+
+train_ds = TensorDataset(x_train, y_train)
+
 def fit():
     for epoch in range(epochs):
         for i in range((num_instances - 1) // batch_size + 1):
-            start_i = i * batch_size
-            end_i = start_i + batch_size
-            xb = x_train[start_i:end_i]
-            yb = y_train[start_i:end_i]
+            # Previously, we had to iterate through minibatches of x and y values separately:
+            # Now, we can do these two steps together:
+            xb, yb = train_ds[i * batch_size: i * batch_size + batch_size]
             pred = model(xb)
             loss = loss_func(pred, yb)
 
